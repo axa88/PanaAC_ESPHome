@@ -43,7 +43,7 @@ namespace esphome
 
         // IR transmit frequency
         const uint16_t PANAAC_IR_TRANSMIT_FREQ = 38000;
-        
+
         // byte position
         const uint8_t PANAAC_BYTEPOS_POWER = 5;
         const uint8_t PANAAC_BYTEPOS_MODE = 5;
@@ -52,11 +52,15 @@ namespace esphome
         const uint8_t PANAAC_BYTEPOS_SWINGV = 8;
         const uint8_t PANAAC_BYTEPOS_SWINGH = 9;
         const uint8_t PANAAC_BYTEPOS_QUIET = 13;
-        
+        const uint8_t PANAAC_BYTEPOS_POWERFUL = 13;
+        const uint8_t PANAAC_BYTEPOS_ECO = 17;
+
         // byte values
         const uint8_t PANAAC_POWER_MASK = 0x01;  // only bit 0 encodes power state
         const uint8_t PANAAC_POWER_OFF = 0x00;   // bit 0 = 0 → OFF
-        const uint8_t PANAAC_POWER_ON  = 0x01;   // bit 0 = 1 → ON
+        const uint8_t PANAAC_POWER_ON = 0x01;   // bit 0 = 1 → ON
+        const uint8_t PANAAC_POWERFUL = 0x01;
+        const uint8_t PANAAC_ECO = 0x10;
 
         const uint8_t PANAAC_MODE_DRY = 0x20;
         const uint8_t PANAAC_MODE_COOL = 0x30;
@@ -66,14 +70,14 @@ namespace esphome
 
         enum FanLevel {
             PANAAC_FAN_AUTO = 0xA0,
+            PANAAC_FAN_QUIET = 0x20,
             PANAAC_FAN_LEVEL_1 = 0x30,
             PANAAC_FAN_LEVEL_2 = 0x40,
             PANAAC_FAN_LEVEL_3 = 0x50,
             PANAAC_FAN_LEVEL_4 = 0x60,
             PANAAC_FAN_LEVEL_5 = 0x70,
-            PANAAC_FAN_QUIET = 0x20,
         };
-        
+
         enum SwingVPos {
             PANAAC_SWINGV_AUTO = 0x0F,
             PANAAC_SWINGV_HIGHEST = 0x01,
@@ -103,6 +107,7 @@ namespace esphome
             SwingHPos swing_h_pos;
             SwingVPos last_swing_v_pos;
             SwingHPos last_swing_h_pos;
+            climate::ClimatePreset preset{climate::CLIMATE_PRESET_NONE};
         };
 
         static const char *STR_FAN_AUTO = "Auto";

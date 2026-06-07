@@ -28,22 +28,17 @@ namespace esphome
         {
         public:
             PanaACClimate() : climate_ir::ClimateIR(
-                                  PANAAC_TEMP_MIN, PANAAC_TEMP_MAX, 1.0f, true, true,
-                                  {climate::CLIMATE_FAN_AUTO,
-                                   climate::CLIMATE_FAN_LOW,
-                                   climate::CLIMATE_FAN_MEDIUM,
-                                   climate::CLIMATE_FAN_HIGH,
-                                   climate::CLIMATE_FAN_QUIET},
-                                  {climate::CLIMATE_SWING_OFF,
-                                   climate::CLIMATE_SWING_BOTH,
-                                   climate::CLIMATE_SWING_VERTICAL,
-                                   climate::CLIMATE_SWING_HORIZONTAL},
-                                  {})
-                                  {}
+                PANAAC_TEMP_MIN, PANAAC_TEMP_MAX, 1.0f, true, true,
+                {climate::CLIMATE_FAN_AUTO, climate::CLIMATE_FAN_LOW, climate::CLIMATE_FAN_MEDIUM, climate::CLIMATE_FAN_HIGH, climate::CLIMATE_FAN_QUIET},
+                {climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_BOTH, climate::CLIMATE_SWING_VERTICAL, climate::CLIMATE_SWING_HORIZONTAL},
+                {climate::CLIMATE_PRESET_NONE, climate::CLIMATE_PRESET_BOOST, climate::CLIMATE_PRESET_ECO})
+                {}
 
             void set_swing_horizontal(bool swing_horizontal) { this->swing_horizontal_ = swing_horizontal; }
             void set_temp_step(float temp_step) { this->temp_step_ = temp_step; }
             void set_supports_quiet(bool supports_quiet) { this->supports_quiet_ = supports_quiet; }
+            void set_supports_powerful(bool val) { this->supports_powerful_ = val; }
+            void set_supports_eco(bool val) { this->supports_eco_ = val; }
             void set_supports_fan_only(bool supports_fan_only) { this->supports_fan_only_ = supports_fan_only; }
             void set_fan_5level(bool fan_5level) { this->fan_5level_ = fan_5level; }
             void set_ir_control(bool ir_control) { this->ir_control_ = ir_control; }
@@ -66,12 +61,14 @@ namespace esphome
 
             bool decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes);
             bool decode_state(std::vector<uint8_t> state_bytes, ClimateState& state);
-            
+
             float temp_step_;
             bool supports_quiet_;
             bool fan_5level_;
             bool ir_control_;
             bool supports_fan_only_;
+            bool supports_powerful_{false};
+            bool supports_eco_{false};
 
             PanaACFanLevel *fanlevel_{nullptr};
             PanaACSwingV *swingv_{nullptr};

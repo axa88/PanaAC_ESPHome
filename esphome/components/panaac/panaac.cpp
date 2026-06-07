@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
- #include "panaac.h"
+#include "panaac.h"
 
 namespace esphome
 {
@@ -27,7 +27,7 @@ namespace esphome
 
             // state
             ac_state.mode = climate::CLIMATE_MODE_OFF;
-            ac_state.temp = 26.0;
+            ac_state.temp = 28.0;
             ac_state.fan_mode = climate::CLIMATE_FAN_AUTO;
             ac_state.fan_level = PANAAC_FAN_AUTO;
             ac_state.swing_mode = climate::CLIMATE_SWING_VERTICAL;
@@ -86,11 +86,9 @@ namespace esphome
             }
 
             transmit_state();
-
         }
 
         climate::ClimateTraits PanaACClimate::traits() {
-            
             auto traits = climate::ClimateTraits();
             if (this->sensor_ != nullptr)
             {
@@ -105,14 +103,14 @@ namespace esphome
             traits.set_visual_max_temperature(PANAAC_TEMP_MAX);
             traits.set_visual_temperature_step(this->temp_step_);
             traits.set_supported_modes({climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_AUTO, climate::CLIMATE_MODE_DRY});
-            
+
             if (this->supports_cool_)
                 traits.add_supported_mode(climate::CLIMATE_MODE_COOL);
             if (this->supports_heat_)
                 traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);
             if (this->supports_fan_only_)
                 traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
-            
+
             // Default to only 3 levels in ESPHome
             traits.set_supported_fan_modes(
                 {   climate::CLIMATE_FAN_AUTO,
@@ -125,16 +123,21 @@ namespace esphome
                 traits.add_supported_fan_mode(climate::CLIMATE_FAN_QUIET);
 
             traits.set_supported_swing_modes({climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_VERTICAL});
-            
+
             if (this->swing_horizontal_)
             {
                 traits.add_supported_swing_mode(climate::CLIMATE_SWING_HORIZONTAL);
                 traits.add_supported_swing_mode(climate::CLIMATE_SWING_BOTH);
             }
-            
+
+            // presets
+            traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
+            traits.add_supported_preset(climate::CLIMATE_PRESET_BOOST);
+            traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
+
             return traits;
         }
-        
+
         bool PanaACClimate::decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes)
         {
             auto raw_data = data.get_raw_data();
@@ -144,7 +147,7 @@ namespace esphome
             {
                 return false;
             }
-            
+
             if (!data.expect_item(PANAAC_HEADER_MARK, PANAAC_HEADER_SPACE))
             {
                 ESP_LOGV(TAG, "Invalid data - expected header");
@@ -166,7 +169,7 @@ namespace esphome
                             return false;
                         }
                     }
-                    
+
                     // bit 1
                     if (data.expect_item(PANAAC_BIT_MARK, PANAAC_ONE_SPACE))
                     {
@@ -194,7 +197,7 @@ namespace esphome
                 snprintf(buf, sizeof(buf), "%02X ", state_bytes[i]);
                 hex_str += buf;
             }
-            
+
             ESP_LOGV(TAG, "Command decoded: len = %d, data = [ %s]", state_bytes.size(), hex_str.c_str());
 #endif
 
@@ -205,14 +208,14 @@ namespace esphome
             }
 
             return true;
-            
+
         }
-        
+
         bool PanaACClimate::decode_state(std::vector<uint8_t> state_bytes, ClimateState& ac_state)
         {
             // check length
             if (state_bytes.size() != 19) return false;
-            
+
             // check protocol
             if ( !( state_bytes[0] == 0x02 &&
                     state_bytes[1] == 0x20 &&
@@ -234,7 +237,7 @@ namespace esphome
                 ESP_LOGV(TAG, "Invalid checksum");
                 return false;
             }
-            
+
             // operation mode
             if ((state_bytes[PANAAC_BYTEPOS_POWER] & PANAAC_POWER_MASK) == PANAAC_POWER_OFF)
             {
@@ -262,14 +265,14 @@ namespace esphome
                         break;
                 }
             }
-            
+
             // temperature
             ac_state.temp = ((state_bytes[PANAAC_BYTEPOS_TEMP] & 0x1E) >> 1) + PANAAC_TEMP_MIN;
             if ((state_bytes[PANAAC_BYTEPOS_TEMP] & 0x01) == 0x01)
             {
                 ac_state.temp += 0.5;
             }
-            
+
             // fan
             switch (state_bytes[PANAAC_BYTEPOS_FAN] & 0xF0)
             {
@@ -309,14 +312,21 @@ namespace esphome
                     ac_state.fan_level = PANAAC_FAN_QUIET;
                 }
             }
-            
+
+            // preset
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            if (this->supports_powerful_ && (state_bytes[PANAAC_BYTEPOS_POWERFUL] & PANAAC_POWERFUL))
+                ac_state.preset = climate::CLIMATE_PRESET_BOOST;
+            else if (this->supports_eco_ && (state_bytes[PANAAC_BYTEPOS_ECO] & PANAAC_ECO))
+                ac_state.preset = climate::CLIMATE_PRESET_ECO;
+
             //swing
             uint8_t swing_v = state_bytes[PANAAC_BYTEPOS_SWINGV] & 0x0F;
             uint8_t swing_h = state_bytes[PANAAC_BYTEPOS_SWINGH] & 0x0F;
-            
+
             ac_state.swing_v_pos = static_cast<SwingVPos>(swing_v);
             ac_state.swing_h_pos = static_cast<SwingHPos>(swing_h);
-            
+
             if (!this->swing_horizontal_) swing_h = PANAAC_SWINGH_NONE;
 
             if (swing_v == PANAAC_SWINGV_AUTO && swing_h == PANAAC_SWINGH_AUTO)
@@ -351,7 +361,7 @@ namespace esphome
                 ESP_LOGVV(TAG, "Raw data index = %d, data = %d", i, raw_data[i]);
             }
 #endif
-            
+
             // process full frame or 2nd frame only, will ignore the fixed 1st frame
             if (raw_data.size() != 308 && raw_data.size() != 440)
             {
@@ -365,7 +375,7 @@ namespace esphome
                 }
                 return false;
             }
-            
+
             std::vector<uint8_t> state_bytes;
             if (!decode_data(data, state_bytes))
             {
@@ -381,16 +391,16 @@ namespace esphome
                 snprintf(buf, sizeof(buf), "%02X ", state_bytes[i]);
                 hex_str += buf;
             }
-            
+
             ESP_LOGV(TAG, "Finish receiveing Panasonic AC IR state: len = %d, data = [ %s]", state_bytes.size(), hex_str.c_str());
-#endif            
-            
+#endif
+
             if (!decode_state(state_bytes, ac_state))
             {
                 ESP_LOGV(TAG, "Decode state failed");
                 return false;
             }
-            
+
             // receiving HEAT but doesn't support HEAT
             if (!this->supports_heat_ && ac_state.mode == climate::CLIMATE_MODE_HEAT)
             {
@@ -404,12 +414,14 @@ namespace esphome
                 ESP_LOGV(TAG, "Fan only mode not supported");
                 return false;
             }
-            
+
 
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            if (this->supports_powerful_ || this->supports_eco_)
+                this->preset = ac_state.preset;
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -418,7 +430,7 @@ namespace esphome
             {
                 this->swingh_->set_swinghpos(ac_state.swing_h_pos);
             }
-            
+
             return true;
         }
 
@@ -463,7 +475,7 @@ namespace esphome
             uint8_t encoded_temp = static_cast<uint8_t>(ac_state.temp) - PANAAC_TEMP_MIN;
             encoded_temp &= 0x0F;
             second_frame[PANAAC_BYTEPOS_TEMP] = 0x20 | (encoded_temp << 1);
-            
+
             if (static_cast<uint8_t>(ac_state.temp) < ac_state.temp) // if x.5 degree in some models
             {
                 second_frame[PANAAC_BYTEPOS_TEMP] |= 0x01;
@@ -509,6 +521,12 @@ namespace esphome
                     second_frame[PANAAC_BYTEPOS_FAN] |= ac_state.fan_level;
             }
 
+            // preset — byte 13, shares byte with quiet (different bits, no collision)
+            if (this->supports_powerful_ && ac_state.preset == climate::CLIMATE_PRESET_BOOST)
+                second_frame[PANAAC_BYTEPOS_POWERFUL] |= PANAAC_POWERFUL;
+            else if (this->supports_eco_ && ac_state.preset == climate::CLIMATE_PRESET_ECO)
+                second_frame[PANAAC_BYTEPOS_ECO] |= PANAAC_ECO;
+
             // swing
             switch (ac_state.swing_mode)
             {
@@ -537,7 +555,7 @@ namespace esphome
                     {
                         second_frame[PANAAC_BYTEPOS_SWINGH] |= PANAAC_SWINGH_AUTO;
                         ac_state.swing_h_pos = PANAAC_SWINGH_AUTO;
-                    }   
+                    }
                     break;
                 case climate::CLIMATE_SWING_BOTH:
                 default:
@@ -551,11 +569,12 @@ namespace esphome
             }
 
             // checksum
-            for (uint8_t i = 0; i < 18; i++) {
+            for (uint8_t i = 0; i < 18; i++)
+            {
                 second_frame[18] += second_frame[i];
             }
 
-#if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE)            
+#if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE)
             std::string hex_str = "";
             for (uint8_t i = 0; i < second_frame.size(); i++)
             {
@@ -563,9 +582,9 @@ namespace esphome
                 snprintf(buf, sizeof(buf), "%02X ", second_frame[i]);
                 hex_str += buf;
             }
-            
+
             ESP_LOGV(TAG, "Sending Panasonic AC IR state: len = %d, data = [ %s]", second_frame.size(), hex_str.c_str());
-#endif            
+#endif
 
             auto transmit = this->transmitter_->transmit();
             auto *data = transmit.get_data();
@@ -575,7 +594,7 @@ namespace esphome
             {
                 data->set_carrier_frequency(PANAAC_IR_TRANSMIT_FREQ);
             }
-          
+
             // First frame
             data->mark(PANAAC_HEADER_MARK);
             data->space(PANAAC_HEADER_SPACE);
@@ -605,11 +624,11 @@ namespace esphome
             }
             data->mark(PANAAC_BIT_MARK);
             data->space(PANAAC_FRAME_END);
-          
+
             // transmit
             transmit.perform();
         }
-        
+
         void PanaACClimate::transmit_state() {
             // power & mode
             ac_state.mode = this->mode;
@@ -702,12 +721,20 @@ namespace esphome
                     }
             }
 
+            // preset
+            if (this->supports_powerful_ || this->supports_eco_)
+                ac_state.preset = this->preset.has_value() ? this->preset.value() : climate::CLIMATE_PRESET_NONE;
+            else
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+
             transmit_data();
 
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            if (this->supports_powerful_ || this->supports_eco_)
+                this->preset = ac_state.preset;
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -736,8 +763,6 @@ namespace esphome
             }
 
             this->publish_state();
-
         }
-
     } // namespace panaac
 } // namespace esphome

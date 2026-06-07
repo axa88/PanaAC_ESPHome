@@ -74,7 +74,6 @@ namespace esphome
             }
 
             this->climate_->update_state();
-
         }
 
         void PanaACFanLevel::setup()
