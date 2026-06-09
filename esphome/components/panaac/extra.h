@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
- #pragma once
+#pragma once
 
 #include "definitions.h"
-#include <cinttypes>
 
 namespace esphome
 {
@@ -57,6 +56,19 @@ namespace esphome
             void control(const std::string &value) override;
             void set_parent_climate(PanaACClimate *climate) { this->climate_ = climate; }
             void set_swinghpos(SwingHPos swinghpos);
+
+        protected:
+            PanaACClimate *climate_{nullptr};
+        };
+
+        class PanaACPreset : public select::Select, public Component
+        {
+        public:
+            void setup() override;
+            void dump_config() override;
+            void control(const std::string &value) override;
+            void set_parent_climate(PanaACClimate *climate) { this->climate_ = climate; }
+            void set_preset(climate::ClimatePreset preset);
 
         protected:
             PanaACClimate *climate_{nullptr};

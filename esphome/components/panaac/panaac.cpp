@@ -27,7 +27,7 @@ namespace esphome
 
             // state
             ac_state.mode = climate::CLIMATE_MODE_OFF;
-            ac_state.temp = 28.0;
+            ac_state.temp = 26.0;
             ac_state.fan_mode = climate::CLIMATE_FAN_AUTO;
             ac_state.fan_level = PANAAC_FAN_AUTO;
             ac_state.swing_mode = climate::CLIMATE_SWING_VERTICAL;
@@ -66,6 +66,19 @@ namespace esphome
 
             // swing v options
             this->swingv_->traits.set_options({STR_SWINGV_AUTO, STR_SWINGV_HIGHEST, STR_SWINGV_HIGH, STR_SWINGV_MIDDLE, STR_SWINGV_LOW, STR_SWINGV_LOWEST});
+
+            // preset options
+            if (this->preset_ != nullptr)
+            {
+                FixedVector<const char *> preset_options;
+                preset_options.init(3);
+                preset_options.push_back(STR_PRESET_NONE);
+                if (this->supports_powerful_)
+                    preset_options.push_back(STR_PRESET_POWERFUL);
+                if (this->supports_eco_)
+                    preset_options.push_back(STR_PRESET_ECO);
+                this->preset_->traits.set_options(preset_options);
+            }
 
             if (this->swing_horizontal_)
             {
@@ -113,7 +126,8 @@ namespace esphome
 
             // Default to only 3 levels in ESPHome
             traits.set_supported_fan_modes(
-                {   climate::CLIMATE_FAN_AUTO,
+                {
+                    climate::CLIMATE_FAN_AUTO,
                     climate::CLIMATE_FAN_LOW,       // level 1
                     climate::CLIMATE_FAN_MEDIUM,    // level 3
                     climate::CLIMATE_FAN_HIGH       // level 5
@@ -131,9 +145,12 @@ namespace esphome
             }
 
             // presets
-            traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
-            traits.add_supported_preset(climate::CLIMATE_PRESET_BOOST);
-            traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
+            if (this->supports_powerful_ || this->supports_eco_)
+                traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
+            if (this->supports_powerful_)
+                traits.add_supported_preset(climate::CLIMATE_PRESET_BOOST);
+            if (this->supports_eco_)
+                traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
 
             return traits;
         }
@@ -229,7 +246,8 @@ namespace esphome
 
             // verify checksum
             uint8_t checksum = 0;
-            for (uint8_t i = 0; i < 18; i++) {
+            for (uint8_t i = 0; i < 18; i++)
+            {
                 checksum += state_bytes[i];
             }
             if (checksum != state_bytes[18])
@@ -422,6 +440,8 @@ namespace esphome
             this->swing_mode = ac_state.swing_mode;
             if (this->supports_powerful_ || this->supports_eco_)
                 this->preset = ac_state.preset;
+            if (this->preset_ != nullptr)
+                this->preset_->set_preset(ac_state.preset);
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -638,6 +658,17 @@ namespace esphome
 
             // fan
             ac_state.fan_mode = this->fan_mode.value();
+
+            // implementation detail. Deactivate POWERFUL when changing the fan level
+            if (this->supports_powerful_ && this->preset.has_value()
+                && this->preset.value() == climate::CLIMATE_PRESET_BOOST
+                && ac_state.fan_mode != this->last_fan_mode_)
+            {
+                this->preset = climate::CLIMATE_PRESET_NONE;
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+                ESP_LOGD(TAG, "Fan mode changed while POWERFUL active — clearing preset");
+            }
+
             switch (ac_state.fan_mode)
             {
                 case climate::CLIMATE_FAN_LOW:
@@ -721,8 +752,13 @@ namespace esphome
                     }
             }
 
-            // preset
-            if (this->supports_powerful_ || this->supports_eco_)
+            // implementation detail. Clear preset when power off
+            if (ac_state.mode == climate::CLIMATE_MODE_OFF)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+                this->preset = climate::CLIMATE_PRESET_NONE;
+            }
+            else if (this->supports_powerful_ || this->supports_eco_)
                 ac_state.preset = this->preset.has_value() ? this->preset.value() : climate::CLIMATE_PRESET_NONE;
             else
                 ac_state.preset = climate::CLIMATE_PRESET_NONE;
@@ -732,9 +768,12 @@ namespace esphome
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->last_fan_mode_ = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
             if (this->supports_powerful_ || this->supports_eco_)
                 this->preset = ac_state.preset;
+            if (this->preset_ != nullptr)
+                this->preset_->set_preset(ac_state.preset);
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -747,10 +786,13 @@ namespace esphome
 
         void PanaACClimate::update_state()
         {
-            // this->fan_mode = ac_state.fan_mode;
             this->mode = ac_state.mode;
+            // implementation detail. Clear Preset upon power off
+            if (ac_state.mode == climate::CLIMATE_MODE_OFF)
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->preset = ac_state.preset;
             this->swing_mode = ac_state.swing_mode;
             transmit_data();
 
@@ -763,6 +805,9 @@ namespace esphome
             }
 
             this->publish_state();
+
+            if (this->preset_ != nullptr)
+                this->preset_->set_preset(ac_state.preset);
         }
     } // namespace panaac
 } // namespace esphome

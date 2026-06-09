@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
- #pragma once
+#pragma once
 
 #include "definitions.h"
 #include "extra.h"
@@ -46,12 +46,14 @@ namespace esphome
             void set_fanlevel(PanaACFanLevel *fanlevel) { this->fanlevel_ = fanlevel; }
             void set_swingv(PanaACSwingV *swingv) { this->swingv_ = swingv; }
             void set_swingh(PanaACSwingH *swingh) { this->swingh_ = swingh; }
+            void set_preset_select(PanaACPreset *preset) { this->preset_ = preset; }
 
             void update_state();
             void transmit_data();
 
             ClimateState ac_state;
             bool swing_horizontal_;
+            PanaACPreset *preset_{nullptr};
 
         protected:
             void setup() override;
@@ -69,12 +71,12 @@ namespace esphome
             bool supports_fan_only_;
             bool supports_powerful_{false};
             bool supports_eco_{false};
+            climate::ClimateFanMode last_fan_mode_{climate::CLIMATE_FAN_AUTO};
 
             PanaACFanLevel *fanlevel_{nullptr};
             PanaACSwingV *swingv_{nullptr};
             PanaACSwingH *swingh_{nullptr};
         };
-
 
     } // namespace panaac
 } // namespace esphome

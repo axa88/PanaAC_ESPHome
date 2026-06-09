@@ -117,6 +117,9 @@ namespace esphome
         static const char *STR_FAN_L4 = "Level 4";
         static const char *STR_FAN_L5 = "Level 5";
         static const char *STR_FAN_QUIET = "Quiet";
+        static const char *STR_PRESET_NONE = "None";
+        static const char *STR_PRESET_POWERFUL = "Powerful";
+        static const char *STR_PRESET_ECO = "Eco";
 
         static const char *STR_SWINGV_AUTO = "Auto";
         static const char *STR_SWINGV_HIGHEST = "Highest";
