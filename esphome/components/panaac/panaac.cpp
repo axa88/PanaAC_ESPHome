@@ -35,10 +35,11 @@ namespace esphome
             ac_state.swing_h_pos = PANAAC_SWINGH_AUTO;
             ac_state.last_swing_v_pos = PANAAC_SWINGV_MIDDLE;
             ac_state.last_swing_h_pos = PANAAC_SWINGH_MIDDLE;
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
 
             // fan level options
             FixedVector<const char *> fanlevel_options;
-            fanlevel_options.init(7);
+            fanlevel_options.init((this->fan_5level_ ? 6 : 4) + (this->supports_quiet_ ? 1 : 0));
             if (this->fan_5level_)
             {
                 fanlevel_options.push_back(STR_FAN_AUTO);
@@ -179,7 +180,7 @@ namespace esphome
                 {
                     if (data.expect_item(PANAAC_BIT_MARK, PANAAC_FRAME_END))
                     {
-                        // expect new header if there are remain data
+                        // expect new header if there is remaining data
                         if (!data.expect_item(PANAAC_HEADER_MARK, PANAAC_HEADER_SPACE))
                         {
                             ESP_LOGV(TAG, "Invalid data - expected header at index = %d", data.get_index());
@@ -195,7 +196,7 @@ namespace esphome
                     // bit 0
                     else if (data.expect_item(PANAAC_BIT_MARK, PANAAC_ZERO_SPACE))
                     {
-                        // 0 already initialized, hence do nothingg here
+                        // 0 already initialized, hence do nothing here
                     }
                     else
                     {
@@ -228,7 +229,7 @@ namespace esphome
 
         }
 
-        bool PanaACClimate::decode_state(std::vector<uint8_t> state_bytes, ClimateState& ac_state)
+        bool PanaACClimate::decode_state(const std::vector<uint8_t>& state_bytes, ClimateState& ac_state)
         {
             // check length
             if (state_bytes.size() != 19) return false;
@@ -410,7 +411,7 @@ namespace esphome
                 hex_str += buf;
             }
 
-            ESP_LOGV(TAG, "Finish receiveing Panasonic AC IR state: len = %d, data = [ %s]", state_bytes.size(), hex_str.c_str());
+            ESP_LOGV(TAG, "Finish receiving Panasonic AC IR state: len = %d, data = [ %s]", state_bytes.size(), hex_str.c_str());
 #endif
 
             if (!decode_state(state_bytes, ac_state))
@@ -437,6 +438,7 @@ namespace esphome
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->last_fan_mode_ = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
             if (this->supports_powerful_ || this->supports_eco_)
                 this->preset = ac_state.preset;
@@ -792,6 +794,7 @@ namespace esphome
                 ac_state.preset = climate::CLIMATE_PRESET_NONE;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->last_fan_mode_ = ac_state.fan_mode;
             this->preset = ac_state.preset;
             this->swing_mode = ac_state.swing_mode;
             transmit_data();

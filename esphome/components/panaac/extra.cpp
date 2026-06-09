@@ -246,7 +246,7 @@ namespace esphome
         void PanaACSwingH::dump_config()
         {
             ESP_LOGCONFIG(TAG, "PanaACSwingH:");
-            LOG_SELECT("  Swing Horizontal: ", "swingv", this);
+            LOG_SELECT("  Swing Horizontal: ", "swingh", this);
         }
 
         void PanaACSwingH::control(const std::string &value)

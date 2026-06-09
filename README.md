@@ -10,11 +10,10 @@ It **inherits from ESPHome's `ClimateIR`** and adds support for:
 - **IR Receiver** to detect and decode Panasonic AC remote commands (216 bit frame)
 - **Temperature step** (0.5 or 1.0 degree)
 - **Fan Level Control** (1–5, plus quiet)
-    - Default 3 levels without quiet, can configure 5 levels and quiet separately
+    - Default 3 levels without quiet; 5 levels and quiet can be enabled separately
 - **Swing Control**:
   - **Vertical Swing** (Highest, High, Middle, Low, Lowest, Auto)
-  - **Horizontal Swing** (Left Max, Left, Middle, Right, Right Max, Auto)
-    - Default off, can configure on.
+  - **Horizontal Swing** (Left Max, Left, Middle, Right, Right Max, Auto) — off by default, can be enabled
 - **Presets**:
   - Powerful (aka Boost in HA)
   - Eco
@@ -27,167 +26,194 @@ It **inherits from ESPHome's `ClimateIR`** and adds support for:
 - ✅ Based on ESPHome `ClimateIR` class for climate control
 - ✅ IR receiver support to sync state from physical remote
 - ✅ `select` components for:
-  - Fan level 
+  - Fan level
   - Swing vertical
   - Swing horizontal
-  - Preset
+  - Presets
 - ✅ Auto state updates when IR signal is received
 
 ---
 
-## 📦 Requirements
+## 📦 Hardware Installation
 
-- ESP32 or ESP8266 board
-You have 2 options to install ESPHome module to you AC.
+You need an ESP32 or ESP8266 board. There are two ways to connect it to your AC.
 
-- **1. Invasive method:** You must have physical access to Panasonic AC IR board
-    - Wiring Panasonic AC IR board with ESP board
-        - ESP GND <-> Pana AC IR board's GND
-        - ESP 5V <-> Pana AC IR board's VCC (make sure your AC IR board supplies 5V)
-        - ESP GPIO <--> Pana AC IR board's IR Led output
+### Method 1 — Invasive (recommended for permanent installs)
 
-    ![Wiring directly to AC IR board](assets/panaac_wiring_direct.png)
+Connect the ESP board directly to the AC's IR board. Requires physical access to the AC IR board.
 
-- **2. Non-invasive method:** If you don't want to mod your AC IR board (invasive method), you have choice to do as below
-    - Make your own IR led receiver and IR led transmitter circuit (via transistor). Refer below schematic.
-    - Connect IR led receiver circuit and IR led transmitter circuit to ESP GPIOs.
+- ESP GND → AC IR board GND
+- ESP 5V → AC IR board VCC (verify your IR board supplies 5V)
+- ESP GPIO ↔ AC IR board IR LED output
 
-    ![Wiring IR leds](assets/panaac_wiring_irleds.png)
+![Wiring directly to AC IR board](assets/panaac_wiring_direct.png)
 
-    - Configure ESPHome yaml `remote_receiver` and `remote_transmitter` with respective GPIOs.
-    - One important thing is, you have to install your ESP8266 module near the the AC indoor unit:
-        - It has to be able to receive signal from physical remote same as AC unit.
-        - Its IR transmitter led has to point to the AC IR module, so the command sends from it can come to the AC.
-    - This way, you have to additionally configure the `panaac` climate with `ir_control: True`
-- **NOTE:**
-    - Method 1 brings much more stability and performance, as it captures the IR signal and feeds the control command directly to AC IR board.
-    - **Recommendation:** during testing phase, you can use method 2, but for long-term usage it's highly recommended to install it as method 1.
+With this method the ESP intercepts the IR signal directly on the wire, so `ir_control` should be `false` — no carrier frequency is needed.
 
+### Method 2 — Non-invasive (good for testing)
+
+Build a separate IR LED receiver and IR LED transmitter circuit (via transistor) and connect them to ESP GPIOs. See the schematic below.
+
+![Wiring IR leds](assets/panaac_wiring_irleds.png)
+
+Place the ESP module near the AC indoor unit so that:
+- Its IR receiver can pick up signals from the physical remote
+- Its IR transmitter LED points at the AC's IR sensor
+
+With this method the ESP transmits a real IR signal through the air, so `ir_control` must be `true` to enable the carrier frequency.
+
+> **Recommendation:** use Method 2 during testing, then switch to Method 1 for permanent installation. Method 1 is significantly more stable.
 
 ---
 
 ## 📂 Installation
 
-1. Copy `esphome/components/panaac` folder to your HASS ESPHome `components` folder.
-2. Add climate component to your ESPHome YAML configuration (refer example `ac-test-1.yaml` and `ac-test-2.yaml`)
+1. Copy the `esphome/components/panaac` folder to your ESPHome `components` folder.
+2. Add the climate component to your ESPHome YAML configuration (see example files `ac-test-1.yaml` and `ac-test-2.yaml`).
 
+Alternatively, reference the repository directly in your YAML:
 
-- Or more simply, reference the repository directly.
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/hoangminh1109/PanaAC_ESPHome
+    components: [ panaac ]
+    refresh: 0s
+```
 
-  ```yaml
-  external_components:
-    - source:
-        type: git
-        url: https://github.com/hoangminh1109/PanaAC_ESPHome
-      components: [ panaac ]
-      refresh: 0s
-  ```
+---
 
-- If you're connecting ESP GPIO directly to IR led signal pin on AC IR board (invasive method), you need to set the `remote_receiver` and `remote_transmitter` to use the same GPIO pin.
+## ⚙️ Optional Parameters
 
-    ```yaml
-    remote_receiver:
-        pin:
-            number: GPIO4
-            inverted: True
-            mode: OUTPUT_OPEN_DRAIN
-            allow_other_uses: True # needed for same pin
-        tolerance: 55%
-        id: ir_receiver
-        idle: 5ms # required
+| Parameter           | Type  | Default | Description                                       |
+|---------------------|-------|---------|---------------------------------------------------|
+| `receiver_id`       | id    | —       | ID of the `remote_receiver` component             |
+| `temp_step`         | float | `1.0`   | Temperature step in degrees (`0.5` or `1.0`)      |
+| `supports_heat`     | bool  | `false` | Enable Heat mode                                  |
+| `supports_fan_only` | bool  | `false` | Enable Fan-Only mode                              |
+| `supports_quiet`    | bool  | `false` | Enable Quiet fan level                            |
+| `fan_5level`        | bool  | `false` | Expose all 5 fan levels (default is 3)            |
+| `swing_horizontal`  | bool  | `false` | Enable horizontal swing control                   |
+| `supports_powerful` | bool  | `false` | Enable Powerful (Boost) preset                    |
+| `supports_eco`      | bool  | `false` | Enable Eco preset                                 |
+| `ir_control`        | bool  | `false` | Set `true` for non-invasive IR transmitter wiring |
 
-    remote_transmitter:
-        carrier_duty_percent: 50%
-        pin:
-            number: GPIO4
-            inverted: True
-            mode: OUTPUT_OPEN_DRAIN
-            allow_other_uses: True # needed for same pin
+---
 
-    climate:
-        - platform: panaac
-            name: "Remote Controller"
-            receiver_id: ir_receiver
-            supports_fan_only: true
-            supports_heat: true
-            supports_quiet: true
-            fan_5level: true
-            swing_horizontal: false
-            temp_step: 0.5
-            ir_control: false
-    ```
+## 📋 YAML Examples
 
-- If you're installing the ESPHome device as a separated device and communicate with AC with real IR leds (non-invasive method), use different GPIO pins for `remote_receiver` and `remote_transmitter`. **Additionally parameter `ir_control` needs to be True**.
+### Invasive wiring (Method 1) — shared GPIO, no carrier
 
-    ```yaml
-    remote_receiver:
-        pin:
-            number: GPIO14
-            inverted: True
-        tolerance: 55%
-        id: ir_receiver
-        idle: 5ms # required
+```yaml
+remote_receiver:
+    pin:
+        number: GPIO4
+        inverted: true
+        mode: OUTPUT_OPEN_DRAIN
+        allow_other_uses: true # needed for shared pin
+    tolerance: 55%
+    id: ir_receiver
+    idle: 5ms # required — see IR Frame Timing note above
 
-    remote_transmitter:
-        carrier_duty_percent: 50%
-        pin:
-            number: GPIO13
+remote_transmitter:
+    carrier_duty_percent: 50%
+    pin:
+        number: GPIO4
+        inverted: true
+        mode: OUTPUT_OPEN_DRAIN
+        allow_other_uses: true # needed for shared pin
 
-    climate:
-        - platform: panaac
-            name: "Remote Controller"
-            receiver_id: ir_receiver
-            supports_fan_only: true
-            supports_heat: true
-            supports_quiet: True
-            fan_5level: True
-            swing_horizontal: True
-            temp_step: 0.5
-            ir_control: True
-    ```
-
-- Support individual Presets (Powerful/Eco)
-  
-  ```yaml
-  climate:
+climate:
     - platform: panaac
-      name: Thermostat
-      id: thermostat
-      device_id: hvac
-      supports_powerful: True
-      supports_eco: True
-  ```
+      name: "Remote Controller"
+      receiver_id: ir_receiver
+      supports_fan_only: true
+      supports_heat: true
+      supports_quiet: true
+      fan_5level: true
+      swing_horizontal: false
+      temp_step: 0.5
+      ir_control: false
+```
 
-  - **NOTE:**
-      - Panasonic AC IR protocol includes 2 IR frames
-          - First fixed 8-byte frame contains transmission marker for Panasonic AC
-          - Second 19-byte frame contains the AC state.
-          - There is a frame gap 10000us (10ms).
-      - Default ESPHome `remote_receiver` idle time is also 10ms.
-      - Because of same duration between frame gap and `remote_receiver` idle time, it is quite unstable in recognizing IR frames
-          - Sometimes it detects as a full 27-byte frame.
-          - Sometimes it detects as 2 consecutive frames.
-      - The trick here is set `idle: 5ms` to the `remote_receiver`, so it always splits the IR signal into 2 different frames. IR signal reception stabilizes.
+### Non-invasive wiring (Method 2) — separate GPIOs, carrier enabled
+
+```yaml
+remote_receiver:
+    pin:
+        number: GPIO14
+        inverted: true
+    tolerance: 55%
+    id: ir_receiver
+    idle: 5ms # required — see IR Frame Timing note above
+
+remote_transmitter:
+    carrier_duty_percent: 50%
+    pin:
+        number: GPIO13
+
+climate:
+    - platform: panaac
+      name: "Remote Controller"
+      receiver_id: ir_receiver
+      supports_fan_only: true
+      supports_heat: true
+      supports_quiet: true
+      fan_5level: true
+      swing_horizontal: true
+      temp_step: 0.5
+      ir_control: true
+```
+
+### Enabling presets (Powerful / Eco)
+
+```yaml
+climate:
+  - platform: panaac
+    name: Thermostat
+    id: thermostat
+    device_id: hvac
+    supports_powerful: true
+    supports_eco: true
+```
+
+---
+
+## ⚠️ Important: IR Frame Timing
+
+The Panasonic AC IR protocol sends 2 frames:
+- A fixed 8-byte preamble frame (transmission marker)
+- A 19-byte command frame containing the AC state
+- A 10 ms gap between the two frames
+
+The default ESPHome `remote_receiver` idle time is also 10 ms. Because the frame gap and the idle timeout are the same duration, frame detection is unstable — sometimes the receiver sees a single 27-byte frame, sometimes two separate frames.
+
+**The fix:** set `idle: 5ms` on your `remote_receiver`. This ensures the receiver always splits the signal into two frames, making reception reliable. This is required in all configurations.
 
 ---
 
 ## 🖼️ Screenshots
 
-Here is how the component appears in Home Assistant:
+Home Assistant:
 
-![Panasonic AC Climate control in HA](assets/screenshot_panaac_climate_HA.png)
-![Panasonic AC in Home Assistant](assets/screenshot_panaac.png)
+<img src="assets/screenshot_panaac_climate_HA.png" width="320">
+<img src="assets/screenshot_panaac.png" width="320">
 
-Here is how the component appears in EspHome WebUI:
+ESPHome WebUI:
 
-![Panasonic AC in EspHome](assets/screenshot_panaac_climate_esphome.png)
-
+<img src="assets/screenshot_panaac_climate_esphome.png" width="480">
+---
 
 ## 📝 Testing
 
-The panaac component has been tested with ESP8266 and ESP32 using below Panasonic AC remotes with QKH, TKH, SKH units.
+Tested with ESP8266 and ESP32 using these Panasonic AC remotes and series:
+  - QKH
+  - SKH
+  - TKH
+  - WKH
 
-![Panasonic tested remotes](assets/panaac_remotes.png)
-![Panasonic tested remote](assets/panaac_remote1.png)
+<img src="assets/panaac_remotes.png" width="700">
+<img src="assets/panaac_remote1.png" width="250">
 
-Any user is welcome to test on your own, and if there's any problem please create an issue and we'll look into it.
+Feedback and bug reports are welcome — please open an issue if you run into any problems.

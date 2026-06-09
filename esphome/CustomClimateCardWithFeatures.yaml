@@ -1,0 +1,42 @@
+﻿type: vertical-stack
+cards:
+  - type: thermostat
+    entity: climate.ir_thermostat
+    show_current_as_primary: true
+    features:
+      - type: climate-hvac-modes
+      - style: icons
+        type: climate-fan-modes
+        fan_modes:
+          - auto
+          - quiet
+          - low
+          - medium
+          - high
+      - style: icons
+        type: climate-preset-modes
+      - style: icons
+        type: climate-swing-modes
+    name:
+      type: entity
+  - square: false
+    type: grid
+    columns: 2
+    cards:
+      - type: tile
+        entity: select.fan_level
+        name: Fan
+        hide_state: true
+        vertical: false
+        features:
+          - type: select-options
+        features_position: bottom
+      - type: tile
+        entity: select.swing_vertical
+        name: Swing
+        show_entity_picture: false
+        hide_state: true
+        vertical: false
+        features:
+          - type: select-options
+        features_position: bottom
