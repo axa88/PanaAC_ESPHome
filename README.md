@@ -197,12 +197,12 @@ The default ESPHome `remote_receiver` idle time is also 10 ms. Because the frame
 
 Home Assistant:
 
-<img src="assets/screenshot_panaac_climate_HA.png" width="320">
-<img src="assets/screenshot_panaac.png" width="320">
+![HA Climate Card](assets/screenshot_panaac_climate_HA.png)
+![HA Entities 1](assets/screenshot_panaac.png)
 
 ESPHome WebUI:
 
-<img src="assets/screenshot_panaac_climate_esphome.png" width="480">
+![ESPHOME Web UI](assets/screenshot_panaac_climate_esphome.png)
 ---
 
 ## 📝 Testing
@@ -213,7 +213,7 @@ Tested with ESP8266 and ESP32 using these Panasonic AC remotes and series:
   - TKH
   - WKH
 
-<img src="assets/panaac_remotes.png" width="700">
-<img src="assets/panaac_remote1.png" width="250">
+![Remotes](assets/panaac_remotes.png)
+![Remote](assets/panaac_remote1.png)
 
 Feedback and bug reports are welcome — please open an issue if you run into any problems.
