@@ -812,5 +812,6 @@ namespace esphome
             if (this->preset_ != nullptr)
                 this->preset_->set_preset(ac_state.preset);
         }
+
     } // namespace panaac
 } // namespace esphome

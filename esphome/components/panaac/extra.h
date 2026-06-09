@@ -73,6 +73,5 @@ namespace esphome
         protected:
             PanaACClimate *climate_{nullptr};
         };
-
     } // namespace panaac
 } // namespace esphome
